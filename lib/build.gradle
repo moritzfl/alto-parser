@@ -1,0 +1,88 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.github.jacobono:gradle-jaxb-plugin:1.3.6'
+        classpath 'com.massfords:jaxb-visitor:2.7'
+    }
+}
+plugins {
+    // Apply the java-library plugin for API and implementation separation.
+    id 'java-library'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+def generatedSourcesOutput = "$buildDir/generated/src/main/java"
+
+repositories {
+    // Use Maven Central for resolving dependencies.
+    mavenCentral()
+}
+
+configurations {
+    jaxb
+}
+
+dependencies {
+    implementation 'org.jetbrains:annotations:20.1.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.2'
+
+    jaxb 'javax.xml.bind:jaxb-api:2.3.1'
+    jaxb 'com.sun.xml.bind:jaxb-xjc:2.3.1'
+    jaxb 'com.sun.xml.bind:jaxb-impl:2.3.1'
+    jaxb 'com.sun.xml.bind:jaxb-osgi:2.3.1'
+    jaxb "org.jvnet.jaxb2_commons:jaxb2-basics:0.6.4"
+    jaxb "org.jvnet.jaxb2_commons:jaxb2-basics-annotate:0.6.4"
+    jaxb 'javax.annotation:javax.annotation-api:1.3.2'
+
+    implementation 'com.sun.xml.bind:jaxb-xjc:2.3.1'
+    implementation 'com.sun.xml.bind:jaxb-impl:2.3.1'
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+    implementation 'com.sun.xml.bind:jaxb-core:2.3.0.1'
+    implementation 'javax.annotation:javax.annotation-api:1.3.2'
+}
+
+tasks.named('test') {
+    // Use JUnit Platform for unit tests.
+    useJUnitPlatform()
+}
+
+
+sourceSets {
+    main {
+        java.srcDirs "$generatedSourcesOutput"
+    }
+}
+
+task generateSources() {
+    doLast {
+        def jaxbTargetDir = file("$generatedSourcesOutput")
+
+        if (!jaxbTargetDir.exists()) {
+            jaxbTargetDir.mkdirs()
+        }
+
+        ant.taskdef(name: 'xjc', classname: 'com.sun.tools.xjc.XJCTask', classpath: configurations.jaxb.asPath)
+
+        ant.xjc(
+                destdir: "${jaxbTargetDir}",
+                schema: "${projectDir}/src/main/resources/alto_3.xsd",
+                binding: "${projectDir}/src/main/resources/jaxb-bindings.xjb",
+
+                removeOldOutput: 'yes', extension: 'true'
+        )
+                {
+                    arg(line: '-nv -Xannotate -Xinheritance')
+                }
+    }
+}
+
+
+compileJava {
+    dependsOn generateSources
+}
